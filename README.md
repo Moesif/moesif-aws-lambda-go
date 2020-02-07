@@ -25,8 +25,7 @@ go get github.com/moesif/moesif-aws-lambda-go@v1.0.0
 
 ## How to use
 
-Add middleware to your Lambda application.
-
+### 1. Add middleware to your Lambda application.
 
 ```go
 package main
@@ -42,7 +41,6 @@ import (
 
 func MoesifOptions() map[string]interface{} {
 	var moesifOptions = map[string]interface{} {
-		"Application_Id": "Your Moesif Application Id",
 		"Log_Body": true,
 	}
 	return moesifOptions
@@ -63,7 +61,10 @@ func main() {
 }
 ```
 
-Your Moesif Application Id can be found in the [_Moesif Portal_](https://www.moesif.com/).
+### 2. Set MOESIF_APPLICATION_ID environment variable 
+
+Add a new environment variable with the name `MOESIF_APPLICATION_ID` and the value being your Moesif application id,
+which can be found in the [_Moesif Portal_](https://www.moesif.com/).
 After signing up for a Moesif account, your Moesif Application Id will be displayed during the onboarding steps. 
 
 You can always find your Moesif Application Id at any time by logging 
