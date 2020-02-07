@@ -1,29 +1,32 @@
-#### Moesif AWS Lambda Middleware
+#### Moesif AWS Lambda Middleware for Go
 
 [![Built For][ico-built-for]][link-built-for]
 [![Software License][ico-license]][link-license]
 [![Source Code][ico-source]][link-source]
 
-Middleware (Go) to automatically log API calls from AWS Lambda functions
+Go Middleware for AWS Lambda that automatically logs API calls 
 and sends to [Moesif](https://www.moesif.com) for API analytics and log analysis. 
 
-Designed for APIs that are hosted on AWS Lambda using Amazon API Gateway as a trigger.
-
-This middleware expects the
-[Lambda proxy integration type.](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-set-up-simple-proxy.html#api-gateway-set-up-lambda-proxy-integration-on-proxy-resource)
-If you're using AWS Lambda with API Gateway, you are most likely using the proxy integration type.
+Designed for APIs that are hosted on AWS Lambda using Amazon API Gateway or Application Load Balancer
+as a trigger.
 
 ## How to install
 
+Run the following commands:
+`moesif-aws-lambda-go` can be installed like any other Go library through go get:
 ```shell
 go get github.com/moesif/moesif-aws-lambda-go
 ```
 
+Or, if you are already using Go Modules, specify a version number as well:
+```shell
+go get github.com/moesif/moesif-aws-lambda-go@v1.0.0
+```
+
 ## How to use
 
-The following shows how to import the module and use:
+Add middleware to your Lambda application.
 
-### 1. Import the module:
 
 ```go
 package main
@@ -37,60 +40,9 @@ import (
 	moesifawslambda "github.com/moesif/moesif-aws-lambda-go"
 )
 
-// Mask Event Model
-func maskEventModel(eventModel models.EventModel) models.EventModel {
-	return eventModel
-}
-
-// Set User Id
-func identifyUser(request events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse) string{
-	return "golangapiuser"
-}
-
-// Set Company Id
-func identifyCompany(request events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse) string{
-	return "golangapicompany"
-}
-
-// Set Session Token
-func getSessionToken(request events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse) string{
-	return "XXXXXXXXXXXXXXXX"
-}
-
-// Skip Event
-func shouldSkip(request events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse) bool{
-	return strings.Contains(request.Path, "skip")
-}
-
-// Set Metadata
-func getMetadata(request events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse) map[string]interface{} {
-	
-	var innerNestedFields = map[string] interface{} {
-		"nestedInner": "test",
-	}
-
-	var nestedFields = map[string] interface{} {
-		"inner":  innerNestedFields,
-	}
-	
-	var metadata = map[string]interface{} {
-		"foo" : "bar",
-		"user": "golangapiuser",
-		"test": nestedFields,
-	}
-	return metadata
-}
-
 func MoesifOptions() map[string]interface{} {
 	var moesifOptions = map[string]interface{} {
-		"Api_Version": "1.0.0",
-		"Get_Metadata": getMetadata,
-		"Should_Skip": shouldSkip,
-		"Identify_User": identifyUser,
-		"Identify_Company": identifyCompany,
-		"Get_Session_Token": getSessionToken,
-		"Mask_Event_Model": maskEventModel,
-		"Debug": true,
+		"Application_Id": "Your Moesif Application Id",
 		"Log_Body": true,
 	}
 	return moesifOptions
@@ -101,9 +53,7 @@ func HandleLambdaEvent(ctx context.Context, request events.APIGatewayProxyReques
 		Body:       request.Body,
 		StatusCode: 200,
 		Headers: map[string] string {
-			"RspHeader1":     "RspHeaderValue1",
 			"Content-Type":   "application/json",
-			"Content-Length": "1000",
 		},
 	   }, nil
 }
@@ -113,7 +63,6 @@ func main() {
 }
 ```
 
-### 2. Enter Moesif Application Id
 Your Moesif Application Id can be found in the [_Moesif Portal_](https://www.moesif.com/).
 After signing up for a Moesif account, your Moesif Application Id will be displayed during the onboarding steps. 
 
