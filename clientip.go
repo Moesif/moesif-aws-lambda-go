@@ -1,0 +1,115 @@
+package moesifawslambda
+
+ import (
+	 "net"
+	 "strings"
+ )
+ 
+ func validIp(ipAddress string) bool {
+	 ip := net.ParseIP(ipAddress)
+	 return ip.To4() != nil || ip.To16()!= nil 
+ }
+ 
+ func getClientIpFromXForwardedFor(ipAddress string) string {
+	 
+	 // Split the string
+	 ips := strings.Split(ipAddress, ", ")
+	 
+	 // Sometimes IP addresses in this header can be 'unknown' (http://stackoverflow.com/a/11285650).
+	 // Therefore taking the left-most IP address that is not unknown
+	 // A Squid configuration directive can also set the value to "unknown" (http://www.squid-cache.org/Doc/config/forwarded_for/)
+	 for _, ip := range ips {
+		 
+		 // Azure Web App's also adds a port for some reason, so we'll only use the first part (the IP)
+		 if strings.Contains(ip, ":") {
+			 ip = strings.Split(ip, ":")[0]
+		 }
+ 
+		 // x-forwarded-for may return multiple IP addresses in the format:
+		 // "client IP, proxy 1 IP, proxy 2 IP"
+		 // Therefore, the right-most IP address is the IP address of the most recent proxy
+		 // and the left-most IP address is the IP address of the originating client.
+		 // source: http://docs.aws.amazon.com/elasticloadbalancing/latest/classic/x-forwarded-headers.html
+		 if validIp(ip) {
+			 return ip
+		 }
+		 
+	 }
+	 // Return empty String
+	 return ""
+ }
+ 
+ func getClientIp(requestHeaders map[string]string, defaultSourceIp *string) *string {
+ 
+	 // Standard headers used by Amazon EC2, Heroku, and others.
+	 if xc, ok := requestHeaders["X-Client-Ip"]; ok {
+		 if validIp(xc) {
+			 return &xc
+		 }
+	 }
+ 
+	 // Load-balancers (AWS ELB) or proxies.
+	 if lb, ok := requestHeaders["X-Forwarded-For"]; ok {
+		 xForwardedFor := getClientIpFromXForwardedFor(lb)
+		 if validIp(xForwardedFor) {
+			 return &xForwardedFor
+		 }
+	 }
+ 
+	 // Cloudflare.
+	 // @see https://support.cloudflare.com/hc/en-us/articles/200170986-How-does-Cloudflare-handle-HTTP-Request-headers-
+	 // CF-Connecting-IP - applied to every request to the origin.
+	 if cf, ok := requestHeaders["Cf-Connecting-Ip"]; ok {
+		 if validIp(cf) {
+			 return &cf
+		 }
+	 }
+ 
+	 // Akamai and Cloudflare: True-Client-IP.
+	 if tr, ok := requestHeaders["True-Client-Ip"]; ok {
+		 if validIp(tr) {
+			 return &tr
+		 }
+	 }
+ 
+	 // Default nginx proxy/fcgi; alternative to x-forwarded-for, used by some proxies.
+	 if ngx, ok := requestHeaders["X-Real-Ip"]; ok {
+		 if validIp(ngx) {
+			 return &ngx
+		 }
+	 }
+ 
+	 // (Rackspace LB and Riverbed's Stingray)
+	 // http://www.rackspace.com/knowledge_center/article/controlling-access-to-linux-cloud-sites-based-on-the-client-ip-address
+	 // https://splash.riverbed.com/docs/DOC-1926
+	 if rs, ok := requestHeaders["X-Cluster-Client-Ip"]; ok {
+		 if validIp(rs) {
+			 return &rs
+		 }
+	 }
+	 
+	 if xf, ok := requestHeaders["X-Forwarded"]; ok {
+		 if validIp(xf) {
+			 return &xf
+		 }
+	 }
+ 
+	 if ff, ok := requestHeaders["Forwarded-For"]; ok {
+		 if validIp(ff) {
+			 return &ff
+		 }
+	 }
+ 
+	 if f, ok := requestHeaders["Forwarded"]; ok {
+		 if validIp(f) {
+			 return &f
+		 }
+	 }
+ 
+	 // Default Address
+	 if defaultSourceIp != nil {
+		 return defaultSourceIp
+	 } else {
+		 return nil
+	 }
+ }
