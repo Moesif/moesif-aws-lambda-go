@@ -20,7 +20,7 @@ go get github.com/moesif/moesif-aws-lambda-go
 
 Or, if you are already using Go Modules, specify a version number as well:
 ```shell
-go get github.com/moesif/moesif-aws-lambda-go@v1.0.0
+go get github.com/moesif/moesif-aws-lambda-go@v1.0.1
 ```
 
 ## How to use
