@@ -7,6 +7,7 @@ import (
 	"log"
 	"context"
 	"os"
+	"net/http"
 )
 
  // Global variable
@@ -14,8 +15,21 @@ import (
 	apiClient moesifapi.API
 	debug bool
 	logBody bool
+	disableCaptureOutgoing bool
+	logBodyOutgoing bool
 	moesifOption map[string]interface{}
 )
+
+// Start Capture Outgoing Request
+func StartCaptureOutgoing(configurationOption map[string]interface{}) {
+	// Call the function to initialize the moesif client and moesif options
+	if apiClient == nil {
+		// Set the Capture_Outoing_Requests to true to capture outgoing request
+		configurationOption["Capture_Outoing_Requests"] = true
+		moesifOption = configurationOption
+		moesifClient(moesifOption)
+	}
+ }
 
 // Initialize the client
 func moesifClient(moesifOption map[string]interface{}) {
@@ -31,12 +45,48 @@ func moesifClient(moesifOption map[string]interface{}) {
 			debug = isDebug
 	}
 
+
+	// Disable Capture outgoing by default
+	disableCaptureOutgoing = false
+	// Try to fetch the Capture Outgoing Request from the option
+	if isEnabled, found := moesifOption["Capture_Outoing_Requests"].(bool); found {
+		disableCaptureOutgoing = isEnabled
+	}
+
+	if disableCaptureOutgoing {
+		if debug {
+			log.Println("Start Capturing outgoing requests")
+		}
+		// Enable logBody by default
+		logBodyOutgoing = true
+		// Try to fetch the disableTransactionId from the option
+		if isEnabled, found := moesifOption["Log_Body_Outgoing"].(bool); found {
+			logBodyOutgoing = isEnabled
+		}
+
+		http.DefaultTransport = DefaultTransport
+	}
+
 	// Enable logBody by default
 	logBody = true
 	
 	// Try to fetch the logBody from the option
 	if isEnabled, found := moesifOption["Log_Body"].(bool); found {
 		logBody = isEnabled
+	}
+}
+
+func getUserId(request events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse) *string {
+	var username string
+	if _, found := moesifOption["Identify_User"]; found {
+		username = moesifOption["Identify_User"].(func(events.APIGatewayProxyRequest, events.APIGatewayProxyResponse) string)(request, response)
+		return &username
+	} else {
+		if len(request.RequestContext.Identity.CognitoIdentityID) > 0 {
+			return &request.RequestContext.Identity.CognitoIdentityID
+		} else {
+			return nil
+		}
 	}
 }
 
@@ -55,10 +105,8 @@ func sendMoesifAsync(request events.APIGatewayProxyRequest, response events.APIG
 	}
 
 	// Get User
-	var userId string
-	if _, found := moesifOption["Identify_User"]; found {
-		userId = moesifOption["Identify_User"].(func(events.APIGatewayProxyRequest, events.APIGatewayProxyResponse) string)(request, response)
-	}
+	var userId *string
+	userId = getUserId(request, response)
 
 	// Get Company
 	var companyId string

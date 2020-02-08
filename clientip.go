@@ -39,18 +39,18 @@ package moesifawslambda
 	 return ""
  }
  
- func getClientIp(requestHeaders map[string]string, defaultSourceIp *string) *string {
+ func getClientIp(requestHeaders map[string] []string, defaultSourceIp *string) *string {
  
 	 // Standard headers used by Amazon EC2, Heroku, and others.
 	 if xc, ok := requestHeaders["X-Client-Ip"]; ok {
-		 if validIp(xc) {
-			 return &xc
+		 if validIp(xc[0]) {
+			 return &xc[0]
 		 }
 	 }
  
 	 // Load-balancers (AWS ELB) or proxies.
 	 if lb, ok := requestHeaders["X-Forwarded-For"]; ok {
-		 xForwardedFor := getClientIpFromXForwardedFor(lb)
+		 xForwardedFor := getClientIpFromXForwardedFor(lb[0])
 		 if validIp(xForwardedFor) {
 			 return &xForwardedFor
 		 }
@@ -60,22 +60,22 @@ package moesifawslambda
 	 // @see https://support.cloudflare.com/hc/en-us/articles/200170986-How-does-Cloudflare-handle-HTTP-Request-headers-
 	 // CF-Connecting-IP - applied to every request to the origin.
 	 if cf, ok := requestHeaders["Cf-Connecting-Ip"]; ok {
-		 if validIp(cf) {
-			 return &cf
+		 if validIp(cf[0]) {
+			 return &cf[0]
 		 }
 	 }
  
 	 // Akamai and Cloudflare: True-Client-IP.
 	 if tr, ok := requestHeaders["True-Client-Ip"]; ok {
-		 if validIp(tr) {
-			 return &tr
+		 if validIp(tr[0]) {
+			 return &tr[0]
 		 }
 	 }
  
 	 // Default nginx proxy/fcgi; alternative to x-forwarded-for, used by some proxies.
 	 if ngx, ok := requestHeaders["X-Real-Ip"]; ok {
-		 if validIp(ngx) {
-			 return &ngx
+		 if validIp(ngx[0]) {
+			 return &ngx[0]
 		 }
 	 }
  
@@ -83,26 +83,26 @@ package moesifawslambda
 	 // http://www.rackspace.com/knowledge_center/article/controlling-access-to-linux-cloud-sites-based-on-the-client-ip-address
 	 // https://splash.riverbed.com/docs/DOC-1926
 	 if rs, ok := requestHeaders["X-Cluster-Client-Ip"]; ok {
-		 if validIp(rs) {
-			 return &rs
+		 if validIp(rs[0]) {
+			 return &rs[0]
 		 }
 	 }
 	 
 	 if xf, ok := requestHeaders["X-Forwarded"]; ok {
-		 if validIp(xf) {
-			 return &xf
+		 if validIp(xf[0]) {
+			 return &xf[0]
 		 }
 	 }
  
 	 if ff, ok := requestHeaders["Forwarded-For"]; ok {
-		 if validIp(ff) {
-			 return &ff
+		 if validIp(ff[0]) {
+			 return &ff[0]
 		 }
 	 }
  
 	 if f, ok := requestHeaders["Forwarded"]; ok {
-		 if validIp(f) {
-			 return &f
+		 if validIp(f[0]) {
+			 return &f[0]
 		 }
 	 }
  
