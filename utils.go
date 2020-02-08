@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	models "github.com/moesif/moesifapi-go/models"
 	b64 "encoding/base64"
+	"net/http"
 )
 
 func prepareRequestURI(request events.APIGatewayProxyRequest) string {
@@ -95,17 +96,22 @@ func defaultSourceIp(request events.APIGatewayProxyRequest) *string {
 	}
 }
 
-func prepareEvent(request events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse, apiVersion *string, userId string, companyId string, sessionToken string, metadata map[string]interface{}) models.EventModel {
+func prepareEvent(request events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse, apiVersion *string, userId *string, companyId string, sessionToken string, metadata map[string]interface{}) models.EventModel {
 
 	reqTime := time.Now().UTC()
 	transformReqBody, transferEncoding := processBody(request.Body)
+
+	var transformReqHeaders = make(map[string][]string)
+	for  key, value := range request.Headers {
+		transformReqHeaders[key] = []string{value}
+	}
 
 	eventRequestModel := models.EventRequestModel{
 		Time:       &reqTime,
 		Uri:        prepareRequestURI(request),
 		Verb:       request.HTTPMethod,
 		ApiVersion: apiVersion,
-		IpAddress: getClientIp(request.Headers, defaultSourceIp(request)),
+		IpAddress: getClientIp(transformReqHeaders, defaultSourceIp(request)),
 		Headers: processHeaders(request.Headers),
 		Body: &transformReqBody,
 		TransferEncoding: &transferEncoding,
@@ -123,14 +129,75 @@ func prepareEvent(request events.APIGatewayProxyRequest, response events.APIGate
 		TransferEncoding: &transferEncoding,
 	}
 
+	direction := "Incoming"
+	weight := 1
+
 	event := models.EventModel{
 		Request:      eventRequestModel,
 		Response:     eventResponseModel,
 		SessionToken: &sessionToken,
 		Tags:         nil,
-		UserId:       &userId,
+		UserId:       userId,
 		CompanyId:    &companyId,
 		Metadata: 	  &metadata,
+		Direction:    &direction,
+		Weight:       &weight,
 	}
 	return event
+}
+
+// Send Outgoing Event to Moesif
+func sendMoesifOutgoingAsync(request *http.Request, reqTime time.Time, apiVersion *string, reqBody interface{}, reqEncoding *string,
+	rspTime time.Time, respStatus int, respHeader http.Header, respBody interface{}, respEncoding *string, userId *string, 
+	companyId *string, sessionToken *string, metadata map[string]interface{}, direction *string, weight *int) {
+
+	// Get Client Ip
+	ip := getClientIp(request.Header, nil)
+
+	// Prepare request model
+	event_request := models.EventRequestModel{
+	Time:       &reqTime,
+	Uri:        request.URL.Scheme + "://" + request.Host + request.URL.Path,
+	Verb:       request.Method,
+	ApiVersion: apiVersion,
+	IpAddress:  ip,
+	Headers:    request.Header,
+	Body: 		&reqBody,
+	TransferEncoding: reqEncoding,
+	}
+
+	// Prepare response model
+	event_response := models.EventResponseModel{
+	Time:      &rspTime,
+	Status:    respStatus,
+	IpAddress: nil,
+	Headers:   respHeader,
+	Body: 	   respBody,
+	TransferEncoding: respEncoding,
+	}
+
+	// Prepare the event model
+	event := models.EventModel{
+	Request:      event_request,
+	Response:     event_response,
+	SessionToken: sessionToken,
+	Tags:         nil,
+	UserId:       userId,
+	CompanyId:    companyId,
+	Metadata: 	  metadata,
+	Direction:    direction,
+	Weight:       weight,
+	}
+
+	// Send event to moesif
+	_, err := apiClient.CreateEvent(&event)
+	
+	// Log the message
+	if err != nil {
+		log.Fatalf("Error while sending event to Moesif: %s.\n", err.Error())
+	}
+	
+	if debug {
+		log.Printf("Successfully sent outgoing event to Moesif")
+	}
 }
