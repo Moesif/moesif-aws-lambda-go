@@ -70,6 +70,24 @@ You can always find your Moesif Application Id at any time by logging
 into the [_Moesif Portal_](https://www.moesif.com/), click on the top right menu,
  and then clicking _Installation_.
 
+## Optional: Capturing outgoing API calls
+In addition to your own APIs, you can also start capturing calls out to third party services via the following method:
+
+```go
+func MoesifOptions() map[string]interface{} {
+	var moesifOptions = map[string]interface{} {
+		"Application_Id": "Your Moesif Application Id",
+		"Log_Body": true,
+	}
+	return moesifOptions
+}
+
+moesifawslambda.StartCaptureOutgoing(MoesifOptions())
+```
+
+#### `moesifOption`
+(__required__), _map[string]interface{}_, are the configuration options for your application. Please find the details below on how to configure options.
+
 ## Configuration options
 
 Please note that the [request](https://github.com/aws/aws-lambda-go/blob/master/events/apigw.go#L6) and the [response](https://github.com/aws/aws-lambda-go/blob/master/events/apigw.go#L22) parameters in the configuration options are `aws-lambda-go` APIGatewayProxyRequest and APIGatewayProxyResponse respectively.
