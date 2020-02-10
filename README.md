@@ -20,7 +20,7 @@ go get github.com/moesif/moesif-aws-lambda-go
 
 Or, if you are already using Go Modules, specify a version number as well:
 ```shell
-go get github.com/moesif/moesif-aws-lambda-go@v1.0.1
+go get github.com/moesif/moesif-aws-lambda-go@v1.0.2
 ```
 
 ## How to use
@@ -147,6 +147,238 @@ to associate this event with custom metadata. For example, you may want to save 
 
 ##### __`Log_Body_Outgoing`__
 (optional) _boolean_, Default true. Set to false to remove logging request and response body to Moesif.
+
+## Update User
+
+### UpdateUser method
+Create or update a user profile in Moesif.
+The metadata field can be any customer demographic or other info you want to store.
+Only the `UserId` field is required.
+This method is a convenient helper that calls the Moesif API lib.
+For details, visit the [Go API Reference](https://www.moesif.com/docs/api?go#update-a-user).
+
+```go
+import (
+	moesifawslambda "github.com/moesif/moesif-aws-lambda-go"
+)
+
+func literalFieldValue(value string) *string {
+    return &value
+}
+
+var moesifOptions = map[string]interface{} {
+	"Application_Id": "Your Moesif Application Id",
+}
+
+// Campaign object is optional, but useful if you want to track ROI of acquisition channels
+// See https://www.moesif.com/docs/api#users for campaign schema
+campaign := models.CampaignModel {
+  UtmSource: literalFieldValue("google"),
+  UtmMedium: literalFieldValue("cpc"), 
+  UtmCampaign: literalFieldValue("adwords"),
+  UtmTerm: literalFieldValue("api+tooling"),
+  UtmContent: literalFieldValue("landing"),
+}
+  
+// metadata can be any custom dictionary
+metadata := map[string]interface{}{
+  "email": "john@acmeinc.com",
+  "first_name": "John",
+  "last_name": "Doe",
+  "title": "Software Engineer",
+  "sales_info": map[string]interface{}{
+      "stage": "Customer",
+      "lifetime_value": 24000,
+      "account_owner": "mary@contoso.com",
+  },
+}
+
+// Only UserId is required
+user := models.UserModel{
+  UserId:  "12345",
+  CompanyId:  literalFieldValue("67890"), // If set, associate user with a company object
+  Campaign:  &campaign,
+  Metadata:  &metadata,
+}
+
+// Update User
+moesifawslambda.UpdateUser(&user, moesifOption)
+```
+
+### UpdateUsersBatch method
+Similar to UpdateUser, but used to update a list of users in one batch. 
+Only the `UserId` field is required.
+This method is a convenient helper that calls the Moesif API lib.
+For details, visit the [Go API Reference](https://www.moesif.com/docs/api?go#update-users-in-batch).
+
+```go
+
+import (
+	moesifawslambda "github.com/moesif/moesif-aws-lambda-go"
+)
+
+func literalFieldValue(value string) *string {
+    return &value
+}
+
+var moesifOptions = map[string]interface{} {
+	"Application_Id": "Your Moesif Application Id",
+}
+
+// List of Users
+var users []*models.UserModel
+
+// Campaign object is optional, but useful if you want to track ROI of acquisition channels
+// See https://www.moesif.com/docs/api#users for campaign schema
+campaign := models.CampaignModel {
+  UtmSource: literalFieldValue("google"),
+  UtmMedium: literalFieldValue("cpc"), 
+  UtmCampaign: literalFieldValue("adwords"),
+  UtmTerm: literalFieldValue("api+tooling"),
+  UtmContent: literalFieldValue("landing"),
+}
+  
+// metadata can be any custom dictionary
+metadata := map[string]interface{}{
+  "email": "john@acmeinc.com",
+  "first_name": "John",
+  "last_name": "Doe",
+  "title": "Software Engineer",
+  "sales_info": map[string]interface{}{
+      "stage": "Customer",
+      "lifetime_value": 24000,
+      "account_owner": "mary@contoso.com",
+  },
+}
+
+// Only UserId is required
+userA := models.UserModel{
+  UserId:  "12345",
+  CompanyId:  literalFieldValue("67890"), // If set, associate user with a company object
+  Campaign:  &campaign,
+  Metadata:  &metadata,
+}
+
+users = append(users, &userA)
+
+// Update User
+moesifawslambda.UpdateUsersBatch(users, moesifOption)
+```
+
+## Update Company
+
+### UpdateCompany method
+Create or update a company profile in Moesif.
+The metadata field can be any company demographic or other info you want to store.
+Only the `CompanyId` field is required.
+This method is a convenient helper that calls the Moesif API lib.
+For details, visit the [Go API Reference](https://www.moesif.com/docs/api?go#update-a-company).
+
+```go
+import (
+	moesifawslambda "github.com/moesif/moesif-aws-lambda-go"
+)
+
+func literalFieldValue(value string) *string {
+    return &value
+}
+
+var moesifOptions = map[string]interface{} {
+	"Application_Id": "Your Moesif Application Id",
+}
+
+// Campaign object is optional, but useful if you want to track ROI of acquisition channels
+// See https://www.moesif.com/docs/api#update-a-company for campaign schema
+campaign := models.CampaignModel {
+  UtmSource: literalFieldValue("google"),
+  UtmMedium: literalFieldValue("cpc"), 
+  UtmCampaign: literalFieldValue("adwords"),
+  UtmTerm: literalFieldValue("api+tooling"),
+  UtmContent: literalFieldValue("landing"),
+}
+  
+// metadata can be any custom dictionary
+metadata := map[string]interface{}{
+  "org_name": "Acme, Inc",
+  "plan_name": "Free",
+  "deal_stage": "Lead",
+  "mrr": 24000,
+  "demographics": map[string]interface{}{
+      "alexa_ranking": 500000,
+      "employee_count": 47,
+  },
+}
+
+// Prepare company model
+company := models.CompanyModel{
+	CompanyId:		  "67890",	// The only required field is your company id
+	CompanyDomain:  literalFieldValue("acmeinc.com"), // If domain is set, Moesif will enrich your profiles with publicly available info 
+	Campaign: 		  &campaign,
+	Metadata:		    &metadata,
+}
+
+// Update Company
+moesifawslambda.UpdateCompany(&company, moesifOption)
+```
+
+### UpdateCompaniesBatch method
+Similar to UpdateCompany, but used to update a list of companies in one batch. 
+Only the `CompanyId` field is required.
+This method is a convenient helper that calls the Moesif API lib.
+For details, visit the [Go API Reference](https://www.moesif.com/docs/api?go#update-companies-in-batch).
+
+```go
+
+import (
+	moesifawslambda "github.com/moesif/moesif-aws-lambda-go"
+)
+
+func literalFieldValue(value string) *string {
+    return &value
+}
+
+var moesifOptions = map[string]interface{} {
+	"Application_Id": "Your Moesif Application Id",
+}
+
+// List of Companies
+var companies []*models.CompanyModel
+
+// Campaign object is optional, but useful if you want to track ROI of acquisition channels
+// See https://www.moesif.com/docs/api#update-a-company for campaign schema
+campaign := models.CampaignModel {
+  UtmSource: literalFieldValue("google"),
+  UtmMedium: literalFieldValue("cpc"), 
+  UtmCampaign: literalFieldValue("adwords"),
+  UtmTerm: literalFieldValue("api+tooling"),
+  UtmContent: literalFieldValue("landing"),
+}
+  
+// metadata can be any custom dictionary
+metadata := map[string]interface{}{
+  "org_name": "Acme, Inc",
+  "plan_name": "Free",
+  "deal_stage": "Lead",
+  "mrr": 24000,
+  "demographics": map[string]interface{}{
+      "alexa_ranking": 500000,
+      "employee_count": 47,
+  },
+}
+
+// Prepare company model
+companyA := models.CompanyModel{
+	CompanyId:		  "67890",	// The only required field is your company id
+	CompanyDomain:  literalFieldValue("acmeinc.com"), // If domain is set, Moesif will enrich your profiles with publicly available info 
+	Campaign: 		  &campaign,
+	Metadata:		    &metadata,
+}
+
+companies = append(companies, &companyA)
+
+// Update Companies
+moesifawslambda.UpdateCompaniesBatch(companies, moesifOption)
+```
 
 ## Examples
 
