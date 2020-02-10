@@ -31,6 +31,26 @@ func StartCaptureOutgoing(configurationOption map[string]interface{}) {
 	}
  }
 
+// Function to update User
+func UpdateUser(user *models.UserModel, configurationOption map[string]interface{}) {
+	UpdateUserAsync(user, configurationOption)
+}
+
+// Function to update Users in batch
+func UpdateUsersBatch(users []*models.UserModel, configurationOption map[string]interface{}) {
+	UpdateUsersBatchAsync(users, configurationOption)
+}
+
+// Function to update User
+func UpdateCompany(company *models.CompanyModel, configurationOption map[string]interface{}) {
+	UpdateCompanyAsync(company, configurationOption)
+}
+
+// Function to update Users in batch
+func UpdateCompaniesBatch(companies []*models.CompanyModel, configurationOption map[string]interface{}) {
+	UpdateCompaniesBatchAsync(companies, configurationOption)
+}
+
 // Initialize the client
 func moesifClient(moesifOption map[string]interface{}) {
 

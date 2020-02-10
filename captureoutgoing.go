@@ -7,9 +7,7 @@ import (
 	"time"
 	"strings"
 	"io/ioutil"
-	"encoding/json"
 	"bytes"
-	b64 "encoding/base64"
 )
 
 // Transport implements http.RoundTripper.
@@ -87,17 +85,7 @@ func (t *Transport) RoundTrip(request *http.Request) (*http.Response, error) {
 				}
 			
 				// Parse the request Body
-				reqEncoding = "json"
-				if jsonReqParseErr := json.Unmarshal(readReqBody, &outgoingReqBody); jsonReqParseErr != nil {
-					if debug {
-						log.Printf("About to parse outgoing request body as base64 ")
-					}
-					outgoingReqBody = b64.StdEncoding.EncodeToString(readReqBody)
-					reqEncoding = "base64"
-					if debug {
-						log.Printf("Parsed outgoing request body as base64 - %s", outgoingReqBody)
-					}
-				}
+				outgoingReqBody, reqEncoding = processBody(string(readReqBody))
 			
 				// Return io.ReadCloser while making sure a Close() is available for request body
 				request.Body = ioutil.NopCloser(bytes.NewBuffer(readReqBody))
@@ -118,18 +106,7 @@ func (t *Transport) RoundTrip(request *http.Request) (*http.Response, error) {
 				}
 
 				// Parse the response Body
-				respEncoding = "json"
-				if jsonRespParseErr := json.Unmarshal(readRespBody, &outgoingRespBody); jsonRespParseErr != nil {
-					if debug {
-						log.Printf("About to parse outgoing response body as base64 ")
-					}
-					// Base64 Encode data
-					outgoingRespBody = b64.StdEncoding.EncodeToString(readRespBody)
-					respEncoding = "base64"
-					if debug {
-						log.Printf("Parsed outgoing response body as base64 - %s", outgoingRespBody)
-					}
-				}
+				outgoingRespBody, respEncoding = processBody(string(readRespBody))
 	
 				// Return io.ReadCloser while making sure a Close() is available for response body
 				response.Body = ioutil.NopCloser(bytes.NewBuffer(readRespBody))
