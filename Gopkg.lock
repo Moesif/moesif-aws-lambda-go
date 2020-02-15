@@ -2,12 +2,12 @@
 
 
 [[projects]]
-  digest = "1:029b41442df20f53afeb1418e3165722c42a0c709928f92d7e84520f4d27a9e4"
+  digest = "1:2914d29b7bafbd6a270fe7d728999b14c28749f28c711ae889a9fa5f05b7487e"
   name = "github.com/aws/aws-lambda-go"
   packages = ["events"]
   pruneopts = "UT"
-  revision = "b5b7267d297de263cc5b61f8c37543daa9c95ffd"
-  version = "v1.13.3"
+  revision = "b03d958110de656174675d8f88049be607e57b0f"
+  version = "v1.14.0"
 
 [[projects]]
   digest = "1:9f870f2e8d1ed5690703df16c9608516dba226ecb5c808d58a0db46a6a7b5059"
