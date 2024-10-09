@@ -3,7 +3,6 @@ package moesifawslambda
 import (
 	b64 "encoding/base64"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -114,9 +113,23 @@ func prepareEvent(request events.APIGatewayProxyRequest, response events.APIGate
 	var transferEncoding string = "json"
 
 	if logBody && len(request.Body) != 0 {
-		if request.IsBase64Encoded && isBase64String(request.Body) {
-			transformReqBody = request.Body
-			transferEncoding = "base64"
+		if request.IsBase64Encoded {
+			switch isBase64String(request.Body) {
+			case true:
+				transformReqBody = request.Body
+				transferEncoding = "base64"
+			case false:
+				// Meaning body isn't a valid base64-encoded string despite
+				// `IsBase64Encoded``  being `true`.
+				// So we try to pass it on to `processBody`. If the body is not a
+				// valid JSON, we encode it to base64.
+				transformReqBody, transferEncoding = processBody(request.Body)
+				// We want to set `transferEncoding` to empty string if `transferEncoding`
+				// is JSON. This parallels our implementation in Node.js Lambda middleware.
+				if transferEncoding == "json" {
+					transferEncoding = ""
+				}
+			}
 		} else {
 			transformReqBody, transferEncoding = processBody(request.Body)
 		}
@@ -149,9 +162,6 @@ func prepareEvent(request events.APIGatewayProxyRequest, response events.APIGate
 			transferEncoding = "base64"
 		} else {
 			transformRespBody, transferEncoding = processBody(response.Body)
-			fmt.Println("HERE IS THE RESP BODY AND TX========>")
-			fmt.Printf("%s\n===========>", transformRespBody)
-			fmt.Printf("%s\n=========>", transferEncoding)
 		}
 	}
 
