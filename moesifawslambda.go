@@ -1,23 +1,24 @@
 package moesifawslambda
 
 import (
-	"github.com/aws/aws-lambda-go/events"
-	models "github.com/moesif/moesifapi-go/models"
-	moesifapi "github.com/moesif/moesifapi-go"
-	"log"
 	"context"
-	"os"
+	"log"
 	"net/http"
+	"os"
+
+	"github.com/aws/aws-lambda-go/events"
+	moesifapi "github.com/moesif/moesifapi-go"
+	models "github.com/moesif/moesifapi-go/models"
 )
 
- // Global variable
- var (
-	apiClient moesifapi.API
-	debug bool
-	logBody bool
+// Global variable
+var (
+	apiClient              moesifapi.API
+	debug                  bool
+	logBody                bool
 	disableCaptureOutgoing bool
-	logBodyOutgoing bool
-	moesifOption map[string]interface{}
+	logBodyOutgoing        bool
+	moesifOption           map[string]interface{}
 )
 
 // Start Capture Outgoing Request
@@ -41,7 +42,7 @@ func StartCaptureOutgoing(configurationOption map[string]interface{}) {
 	}
 
 	http.DefaultTransport = DefaultTransport
- }
+}
 
 // Function to update User
 func UpdateUser(user *models.UserModel, configurationOption map[string]interface{}) {
@@ -65,21 +66,25 @@ func UpdateCompaniesBatch(companies []*models.CompanyModel, configurationOption 
 
 // Initialize the client
 func moesifClient(moesifOption map[string]interface{}) {
+	var apiEndpoint string
+	var batchSize int
+	var eventQueueSize int
+	var timerWakeupSeconds int
 
 	applicationId := os.Getenv("MOESIF_APPLICATION_ID")
-	api := moesifapi.NewAPI(applicationId)
+	api := moesifapi.NewAPI(applicationId, &apiEndpoint, eventQueueSize, batchSize, timerWakeupSeconds)
 	apiClient = api
 
 	//  Disable debug by default
 	debug = false
 	// Try to fetch the debug from the option
 	if isDebug, found := moesifOption["Debug"].(bool); found {
-			debug = isDebug
+		debug = isDebug
 	}
 
 	// Enable logBody by default
 	logBody = true
-	
+
 	// Try to fetch the logBody from the option
 	if isEnabled, found := moesifOption["Log_Body"].(bool); found {
 		logBody = isEnabled
@@ -104,9 +109,9 @@ func sendMoesifAsync(request events.APIGatewayProxyRequest, response events.APIG
 
 	// Api Version
 	var apiVersion *string = nil
-	 if isApiVersion, found := moesifOption["Api_Version"].(string); found {
-		 apiVersion = &isApiVersion
-	 }
+	if isApiVersion, found := moesifOption["Api_Version"].(string); found {
+		apiVersion = &isApiVersion
+	}
 
 	// Get Metadata
 	var metadata map[string]interface{} = nil
@@ -140,7 +145,7 @@ func sendMoesifAsync(request events.APIGatewayProxyRequest, response events.APIG
 	}
 
 	if shouldSkip {
-		if debug{
+		if debug {
 			log.Printf("Skip sending the event to Moesif")
 		}
 	} else {
