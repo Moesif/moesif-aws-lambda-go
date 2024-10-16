@@ -61,6 +61,34 @@ func prepareRequestURI(request events.APIGatewayProxyRequest) string {
 	return uri
 }
 
+func prepareRequestURIV2HTTP(request events.APIGatewayV2HTTPRequest) string {
+	var uri string
+	if forwardedProtoHeader, found := request.Headers["x-forwarded-proto"]; found {
+		uri = forwardedProtoHeader
+	} else {
+		uri = "http"
+	}
+
+	uri += "://"
+
+	if hostHeader, found := request.Headers["host"]; found {
+		uri += hostHeader
+	} else {
+		uri += "localhost"
+	}
+
+	if len(request.RawPath) > 0 {
+		uri += request.RawPath
+	} else {
+		uri = "/"
+	}
+
+	if len(request.RawQueryString) > 0 {
+		uri += "?" + request.RawQueryString
+	}
+	return uri
+}
+
 func isBase64String(str string) bool {
 	b64Regex, err := regexp.Compile(Base64)
 	if err != nil {
@@ -106,6 +134,14 @@ func defaultSourceIp(request events.APIGatewayProxyRequest) *string {
 	}
 }
 
+func defaultSourceIpV2HTTP(request events.APIGatewayV2HTTPRequest) *string {
+	if len(request.RequestContext.HTTP.SourceIP) > 0 {
+		return &request.RequestContext.HTTP.SourceIP
+	} else {
+		return nil
+	}
+}
+
 func prepareEvent(request events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse, apiVersion *string, userId *string, companyId string, sessionToken string, metadata map[string]interface{}) models.EventModel {
 
 	reqTime := time.Now().UTC()
@@ -146,6 +182,91 @@ func prepareEvent(request events.APIGatewayProxyRequest, response events.APIGate
 		Verb:             request.HTTPMethod,
 		ApiVersion:       apiVersion,
 		IpAddress:        getClientIp(transformReqHeaders, defaultSourceIp(request)),
+		Headers:          processHeaders(request.Headers),
+		Body:             &transformReqBody,
+		TransferEncoding: &transferEncoding,
+	}
+
+	rspTime := time.Now().UTC()
+
+	var transformRespBody interface{}
+	transferEncoding = "json"
+
+	if logBody && len(response.Body) != 0 {
+		if response.IsBase64Encoded {
+			transformRespBody = response.Body
+			transferEncoding = "base64"
+		} else {
+			transformRespBody, transferEncoding = processBody(response.Body)
+		}
+	}
+
+	eventResponseModel := models.EventResponseModel{
+		Time:             &rspTime,
+		Status:           response.StatusCode,
+		IpAddress:        nil,
+		Headers:          processHeaders(response.Headers),
+		Body:             &transformRespBody,
+		TransferEncoding: &transferEncoding,
+	}
+
+	direction := "Incoming"
+	weight := 1
+
+	event := models.EventModel{
+		Request:      eventRequestModel,
+		Response:     eventResponseModel,
+		SessionToken: &sessionToken,
+		Tags:         nil,
+		UserId:       userId,
+		CompanyId:    &companyId,
+		Metadata:     &metadata,
+		Direction:    &direction,
+		Weight:       &weight,
+	}
+	return event
+}
+
+func prepareEventV2HTTP(request events.APIGatewayV2HTTPRequest, response events.APIGatewayV2HTTPResponse, apiVersion *string, userId *string, companyId string, sessionToken string, metadata map[string]interface{}) models.EventModel {
+
+	reqTime := time.Now().UTC()
+	var transformReqBody interface{} = nil
+	var transferEncoding string = "json"
+
+	if logBody && len(request.Body) != 0 {
+		if request.IsBase64Encoded {
+			switch isBase64String(request.Body) {
+			case true:
+				transformReqBody = request.Body
+				transferEncoding = "base64"
+			case false:
+				// Meaning body isn't a valid base64-encoded string despite
+				// `IsBase64Encoded``  being `true`.
+				// So we try to pass it on to `processBody`. If the body is not a
+				// valid JSON, we encode it to base64.
+				transformReqBody, transferEncoding = processBody(request.Body)
+				// We want to set `transferEncoding` to empty string if `transferEncoding`
+				// is JSON. This parallels our implementation in Node.js Lambda middleware.
+				if transferEncoding == "json" {
+					transferEncoding = ""
+				}
+			}
+		} else {
+			transformReqBody, transferEncoding = processBody(request.Body)
+		}
+	}
+
+	var transformReqHeaders = make(map[string][]string)
+	for key, value := range request.Headers {
+		transformReqHeaders[key] = []string{value}
+	}
+
+	eventRequestModel := models.EventRequestModel{
+		Time:             &reqTime,
+		Uri:              prepareRequestURIV2HTTP(request),
+		Verb:             request.RequestContext.HTTP.Method,
+		ApiVersion:       apiVersion,
+		IpAddress:        getClientIp(transformReqHeaders, defaultSourceIpV2HTTP(request)),
 		Headers:          processHeaders(request.Headers),
 		Body:             &transformReqBody,
 		TransferEncoding: &transferEncoding,

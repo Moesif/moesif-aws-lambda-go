@@ -49,6 +49,24 @@ func generateProxyReq(body []byte, isb64Encoded bool) events.APIGatewayProxyRequ
 	}
 }
 
+// Generates mock `events.APIGatewayV2HTTPRequest` request objects.
+func generateProxyReqV2HTTP(body []byte, isb64Encoded bool) events.APIGatewayV2HTTPRequest {
+	return events.APIGatewayV2HTTPRequest{
+		Version:               "2.0",
+		RouteKey:              "$default",
+		RawPath:               "/path/to/foo",
+		RawQueryString:        "parameter1=value1&parameter1=value2&parameter2=value",
+		Cookies:               []string{"cookie1", "cookie2"},
+		Headers:               map[string]string{"Header1": "value1", "Header2": "value1,value2"},
+		QueryStringParameters: map[string]string{"foo": "bar"},
+		PathParameters:        map[string]string{"proxy": "/path/to/resource"},
+		RequestContext:        events.APIGatewayV2HTTPRequestContext{},
+		StageVariables:        map[string]string{"baz": "bar"},
+		Body:                  string(body),
+		IsBase64Encoded:       isb64Encoded,
+	}
+}
+
 // This function mocks a portion of `prepareEvent` that processes the request body
 // and calls `processBody` accordingly.
 // Returns the same as `processBody`.
@@ -124,4 +142,14 @@ func TestProcessBody(t *testing.T) {
 
 	}
 
+}
+
+func TestPrepareRequestURIV2HTTP(t *testing.T) {
+	var uri = prepareRequestURIV2HTTP(generateProxyReqV2HTTP([]byte(`{"name": "Alex"}`), false))
+
+	var expected = "/path/to/foo?parameter1=value1&parameter1=value2&parameter2=value"
+
+	if uri != expected {
+		t.Errorf("got %v, want %v", uri, expected)
+	}
 }
