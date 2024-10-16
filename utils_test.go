@@ -147,7 +147,7 @@ func TestProcessBody(t *testing.T) {
 func TestPrepareRequestURIV2HTTP(t *testing.T) {
 	var uri = prepareRequestURIV2HTTP(generateProxyReqV2HTTP([]byte(`{"name": "Alex"}`), false))
 
-	var expected = "/path/to/foo?parameter1=value1&parameter1=value2&parameter2=value"
+	var expected = "http://localhost/path/to/foo?parameter1=value1&parameter1=value2&parameter2=value"
 
 	if uri != expected {
 		t.Errorf("got %v, want %v", uri, expected)
