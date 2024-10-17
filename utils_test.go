@@ -57,23 +57,9 @@ func mockPrepareEvent(request events.APIGatewayProxyRequest) (interface{}, strin
 	var transferEncoding string = "json"
 
 	if logBody && len(request.Body) != 0 {
-		if request.IsBase64Encoded {
-			switch isBase64String(request.Body) {
-			case true:
-				transformReqBody = request.Body
-				transferEncoding = "base64"
-			case false:
-				// Meaning body isn't a valid base64-encoded string despite
-				// `IsBase64Encoded``  being `true`.
-				// So we try to pass it on to `processBody`. If the body is not a
-				// valid JSON, we encode it to base64.
-				transformReqBody, transferEncoding = processBody(request.Body)
-				// We want to set `transferEncoding` to empty string if `transferEncoding`
-				// is JSON. This parallels our implementation in Node.js Lambda middleware.
-				if transferEncoding == "json" {
-					transferEncoding = ""
-				}
-			}
+		if request.IsBase64Encoded && isBase64String(request.Body) {
+			transformReqBody = request.Body
+			transferEncoding = "base64"
 		} else {
 			transformReqBody, transferEncoding = processBody(request.Body)
 		}
@@ -98,7 +84,7 @@ func TestProcessBody(t *testing.T) {
 	}{
 		{proxyReqWithJsonStrBody, expected{expectedBody: map[string]interface{}{"foo": "bar"}, expectedTransferEncoding: "json"}},
 		{proxyReqWithBase64StrBody, expected{expectedBody: "eyJmb28iOiAiYmFyIn0=", expectedTransferEncoding: "base64"}},
-		{proxyReqWithInvalidBase64StrBody, expected{expectedBody: map[string]interface{}{"foo": "bar"}, expectedTransferEncoding: ""}},
+		{proxyReqWithInvalidBase64StrBody, expected{expectedBody: map[string]interface{}{"foo": "bar"}, expectedTransferEncoding: "json"}},
 	}
 
 	for _, tt := range testcases {
