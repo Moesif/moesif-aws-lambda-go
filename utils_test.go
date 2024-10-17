@@ -31,6 +31,26 @@ func HandleLambdaEvent(ctx context.Context, request events.APIGatewayProxyReques
 	}, nil
 }
 
+func HandleLambdaEventV2HTTP(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	return events.APIGatewayV2HTTPResponse{
+			StatusCode: 200,
+			Headers: map[string]string{
+				"RspHeader1":     "TheYearofDesktopLinux",
+				"Content-Type":   "application/json",
+				"Content-Length": "1000",
+			},
+			MultiValueHeaders: map[string][]string{
+				"X-Forwarded-For":   {"127.0.0.1, 127.0.0.2"},
+				"X-Forwarded-Port":  {"443"},
+				"X-Forwarded-Proto": {"https"},
+			},
+			Body:            request.Body,
+			IsBase64Encoded: false,
+			Cookies:         []string{"cookie1", "cookie2"},
+		},
+		nil
+}
+
 // Generates mock `events.APIGatewayProxyRequest` request objects.
 func generateProxyReq(body []byte, isb64Encoded bool) events.APIGatewayProxyRequest {
 	return events.APIGatewayProxyRequest{
@@ -99,6 +119,38 @@ func mockPrepareEvent(request events.APIGatewayProxyRequest) (interface{}, strin
 	return transformReqBody, transferEncoding
 }
 
+// This function mocks a portion of `prepareEventV2HTTP` that processes the request body
+// and calls `processBody` accordingly.
+// Returns the same as `processBody`.
+func mockPrepareEventV2HTTP(request events.APIGatewayV2HTTPRequest) (interface{}, string) {
+	var transformReqBody interface{} = nil
+	var transferEncoding string = "json"
+
+	if logBody && len(request.Body) != 0 {
+		if request.IsBase64Encoded {
+			switch isBase64String(request.Body) {
+			case true:
+				transformReqBody = request.Body
+				transferEncoding = "base64"
+			case false:
+				// Meaning body isn't a valid base64-encoded string despite
+				// `IsBase64Encoded``  being `true`.
+				// So we try to pass it on to `processBody`. If the body is not a
+				// valid JSON, we encode it to base64.
+				transformReqBody, transferEncoding = processBody(request.Body)
+				// We want to set `transferEncoding` to empty string if `transferEncoding`
+				// is JSON. This parallels our implementation in Node.js Lambda middleware.
+				if transferEncoding == "json" {
+					transferEncoding = ""
+				}
+			}
+		} else {
+			transformReqBody, transferEncoding = processBody(request.Body)
+		}
+	}
+	return transformReqBody, transferEncoding
+}
+
 func TestProcessBody(t *testing.T) {
 
 	var proxyReqWithJsonStrBody = generateProxyReq([]byte(`{"foo": "bar"}`), false)
@@ -132,6 +184,51 @@ func TestProcessBody(t *testing.T) {
 		}
 
 		parsedBody, transferEncoding := mockPrepareEvent(tt.in)
+
+		if transferEncoding != tt.out.expectedTransferEncoding {
+			t.Errorf("got %v, want %v", transferEncoding, tt.out.expectedTransferEncoding)
+		}
+		if !reflect.DeepEqual(parsedBody, tt.out.expectedBody) {
+			t.Errorf("got %v, want %v", parsedBody, tt.out.expectedBody)
+		}
+
+	}
+
+}
+
+func TestProcessBodyV2HTTP(t *testing.T) {
+
+	var proxyReqWithJsonStrBody = generateProxyReqV2HTTP([]byte(`{"foo": "bar"}`), false)
+	var proxyReqWithBase64StrBody = generateProxyReqV2HTTP([]byte(`eyJmb28iOiAiYmFyIn0=`), true)
+	var proxyReqWithInvalidBase64StrBody = generateProxyReqV2HTTP([]byte(`{"foo": "bar"}`), true)
+
+	type expected struct {
+		expectedBody             interface{}
+		expectedTransferEncoding string
+	}
+
+	var testcases = []struct {
+		in  events.APIGatewayV2HTTPRequest
+		out expected
+	}{
+		{proxyReqWithJsonStrBody, expected{expectedBody: map[string]interface{}{"foo": "bar"}, expectedTransferEncoding: "json"}},
+		{proxyReqWithBase64StrBody, expected{expectedBody: "eyJmb28iOiAiYmFyIn0=", expectedTransferEncoding: "base64"}},
+		{proxyReqWithInvalidBase64StrBody, expected{expectedBody: map[string]interface{}{"foo": "bar"}, expectedTransferEncoding: ""}},
+	}
+
+	for _, tt := range testcases {
+
+		res := MoesifLoggerV2HTTP(HandleLambdaEventV2HTTP, MoesifOptions())
+
+		result, err := res(context.Background(), tt.in)
+		if err != nil {
+			t.Logf("encountered error\n")
+			t.Logf("===========\n")
+			t.Log(result)
+			t.Logf("\n===========\n")
+		}
+
+		parsedBody, transferEncoding := mockPrepareEventV2HTTP(tt.in)
 
 		if transferEncoding != tt.out.expectedTransferEncoding {
 			t.Errorf("got %v, want %v", transferEncoding, tt.out.expectedTransferEncoding)

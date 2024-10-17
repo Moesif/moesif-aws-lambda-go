@@ -113,11 +113,16 @@ func getUserIdV2HTTP(request events.APIGatewayV2HTTPRequest, response events.API
 		username = moesifOption["Identify_User"].(func(events.APIGatewayV2HTTPRequest, events.APIGatewayV2HTTPResponse) string)(request, response)
 		return &username
 	} else {
-		if len(request.RequestContext.Authorizer.IAM.CognitoIdentity.IdentityID) > 0 {
-			return &request.RequestContext.Authorizer.IAM.CognitoIdentity.IdentityID
-		} else {
+		switch (request.RequestContext.Authorizer != nil) && (request.RequestContext.Authorizer.IAM != nil) {
+		case true:
+			identity := request.RequestContext.Authorizer.IAM
+			if len(identity.CognitoIdentity.IdentityID) > 0 {
+				return &request.RequestContext.Authorizer.IAM.CognitoIdentity.IdentityID
+			}
+		case false:
 			return nil
 		}
+		return nil
 	}
 }
 
