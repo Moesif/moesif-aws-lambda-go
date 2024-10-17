@@ -220,23 +220,9 @@ func prepareEventV2HTTP(request events.APIGatewayV2HTTPRequest, response events.
 	var transferEncoding string = "json"
 
 	if logBody && len(request.Body) != 0 {
-		if request.IsBase64Encoded {
-			switch isBase64String(request.Body) {
-			case true:
-				transformReqBody = request.Body
-				transferEncoding = "base64"
-			case false:
-				// Meaning body isn't a valid base64-encoded string despite
-				// `IsBase64Encoded``  being `true`.
-				// So we try to pass it on to `processBody`. If the body is not a
-				// valid JSON, we encode it to base64.
-				transformReqBody, transferEncoding = processBody(request.Body)
-				// We want to set `transferEncoding` to empty string if `transferEncoding`
-				// is JSON. This parallels our implementation in Node.js Lambda middleware.
-				if transferEncoding == "json" {
-					transferEncoding = ""
-				}
-			}
+		if request.IsBase64Encoded && isBase64String(request.Body) {
+			transformReqBody = request.Body
+			transferEncoding = "base64"
 		} else {
 			transformReqBody, transferEncoding = processBody(request.Body)
 		}
@@ -264,7 +250,7 @@ func prepareEventV2HTTP(request events.APIGatewayV2HTTPRequest, response events.
 	transferEncoding = "json"
 
 	if logBody && len(response.Body) != 0 {
-		if response.IsBase64Encoded {
+		if response.IsBase64Encoded && isBase64String(response.Body) {
 			transformRespBody = response.Body
 			transferEncoding = "base64"
 		} else {
