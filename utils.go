@@ -31,8 +31,8 @@ func prepareRequestURI(request events.APIGatewayProxyRequest) string {
 		uri += "localhost"
 	}
 
-	if pathHeader, found := request.Headers["path"]; found {
-		uri += pathHeader
+	if request.Path != "" {
+		uri += request.Path
 	} else {
 		uri += "/"
 	}
