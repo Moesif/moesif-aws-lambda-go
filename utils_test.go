@@ -236,3 +236,4 @@ func TestPrepareRequestURIV2HTTP(t *testing.T) {
 		t.Errorf("got %v, want %v", uri, expected)
 	}
 }
+
