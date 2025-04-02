@@ -68,13 +68,13 @@ func UpdateCompaniesBatch(companies []*models.CompanyModel, configurationOption 
 
 // Initialize the client
 func moesifClient(moesifOption map[string]interface{}) {
-	var apiEndpoint string
-	var batchSize int
-	var eventQueueSize int
-	var timerWakeupSeconds int
+	// var apiEndpoint string
+	// var batchSize int
+	// var eventQueueSize int
+	// var timerWakeupSeconds int
 
 	applicationId := os.Getenv("MOESIF_APPLICATION_ID")
-	api := moesifapi.NewAPI(applicationId, &apiEndpoint, eventQueueSize, batchSize, timerWakeupSeconds)
+	api := moesifapi.NewAPI(applicationId) // , &apiEndpoint, eventQueueSize, batchSize, timerWakeupSeconds
 	apiClient = api
 
 	//  Disable debug by default
