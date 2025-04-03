@@ -3,7 +3,6 @@ package moesifawslambda
 import (
 	b64 "encoding/base64"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -59,7 +58,6 @@ func prepareRequestURI(request events.APIGatewayProxyRequest) string {
 		}
 		uri += "?" + queryString
 	}
-	fmt.Printf("request prepareRequestURI: %v\n", request)
 	return uri
 }
 
@@ -89,9 +87,6 @@ func prepareRequestURIV2HTTP(request events.APIGatewayV2HTTPRequest) string {
 	if len(request.RawQueryString) > 0 {
 		uri += "?" + request.RawQueryString
 	}
-
-	fmt.Printf("request: %v\n", request)
-	fmt.Printf("URI V2 HTTP: %s\n", uri)
 
 	return uri
 }
@@ -169,8 +164,6 @@ func prepareEvent(request events.APIGatewayProxyRequest, response events.APIGate
 		transformReqHeaders[key] = []string{value}
 	}
 
-	fmt.Printf("request V1: %v\n", request)
-
 	eventRequestModel := models.EventRequestModel{
 		Time:             &reqTime,
 		Uri:              prepareRequestURI(request),
@@ -241,9 +234,6 @@ func prepareEventV2HTTP(request events.APIGatewayV2HTTPRequest, response events.
 	for key, value := range request.Headers {
 		transformReqHeaders[key] = []string{value}
 	}
-
-	fmt.Printf("request: %v\n", request)
-	fmt.Printf("request.RequestContext.HTTP.Method: %s\n", request.RequestContext.HTTP.Method)
 
 	eventRequestModel := models.EventRequestModel{
 		Time:             &reqTime,

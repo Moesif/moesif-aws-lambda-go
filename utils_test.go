@@ -10,9 +10,9 @@ import (
 
 func MoesifOptions() map[string]interface{} {
 	var moesifOptions = map[string]interface{}{
-		"Application_Id":    "",
+		"Application_Id":    "Your Moesif Application Id",
 		"Api_Version":       "1.0.0",
-		"Debug":             true,
+		"Debug":             false,
 		"Log_Body":          true,
 		"Log_Body_Outgoing": true,
 	}
@@ -24,9 +24,8 @@ func HandleLambdaEvent(ctx context.Context, request events.APIGatewayProxyReques
 		Body:       request.Body,
 		StatusCode: 200,
 		Headers: map[string]string{
-			"RspHeader1":     "RspHeaderValue1",
-			"Content-Type":   "application/json",
-			"Content-Length": "1000",
+			"RspHeader1":   "RspHeaderValue1",
+			"Content-Type": "application/json",
 		},
 	}, nil
 }
@@ -35,9 +34,8 @@ func HandleLambdaEventV2HTTP(ctx context.Context, request events.APIGatewayV2HTT
 	return events.APIGatewayV2HTTPResponse{
 			StatusCode: 200,
 			Headers: map[string]string{
-				"RspHeader1":     "TheYearofDesktopLinux",
-				"Content-Type":   "application/json",
-				"Content-Length": "1000",
+				"RspHeader1":   "TheYearofDesktopLinux",
+				"Content-Type": "application/json",
 			},
 			MultiValueHeaders: map[string][]string{
 				"X-Forwarded-For":   {"127.0.0.1, 127.0.0.2"},
@@ -46,7 +44,6 @@ func HandleLambdaEventV2HTTP(ctx context.Context, request events.APIGatewayV2HTT
 			},
 			Body:            request.Body,
 			IsBase64Encoded: false,
-			Cookies:         []string{"cookie1", "cookie2"},
 		},
 		nil
 }
@@ -159,7 +156,7 @@ func TestProcessBody(t *testing.T) {
 
 	for _, tt := range testcases {
 
-		res := MoesifLogger(HandleLambdaEvent, MoesifOptions())
+		res := MoesifLogger(HandleLambdaEvent, MoesifOptions()).(func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error))
 
 		result, err := res(context.Background(), tt.in)
 		if err != nil {
@@ -204,7 +201,7 @@ func TestProcessBodyV2HTTP(t *testing.T) {
 
 	for _, tt := range testcases {
 
-		res := MoesifLoggerV2HTTP(HandleLambdaEventV2HTTP, MoesifOptions())
+		res := MoesifLogger(HandleLambdaEventV2HTTP, MoesifOptions()).(func(context.Context, events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error))
 
 		result, err := res(context.Background(), tt.in)
 		if err != nil {
@@ -236,4 +233,3 @@ func TestPrepareRequestURIV2HTTP(t *testing.T) {
 		t.Errorf("got %v, want %v", uri, expected)
 	}
 }
-

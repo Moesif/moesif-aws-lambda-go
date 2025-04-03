@@ -2,8 +2,6 @@ package moesifawslambda
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -158,9 +156,6 @@ func sendMoesifAsyncV2HTTP(request events.APIGatewayV2HTTPRequest, response even
 
 	// Prepare Moesif Event
 	moesifEvent := prepareEventV2HTTP(request, response, apiVersion, userId, companyId, sessionToken, metadata)
-	jsonEvent, _ := json.Marshal(moesifEvent)
-	fmt.Println("HERE'S THE MOESIF EVENT MODEL:>>>>")
-	fmt.Println(string(jsonEvent))
 
 	// Should skip
 	shouldSkip := false
@@ -259,28 +254,40 @@ func sendMoesifAsync(request events.APIGatewayProxyRequest, response events.APIG
 	}
 }
 
-func MoesifLogger(f func(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error), configurationOption map[string]interface{}) func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	return func(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-		response, err := f(ctx, request)
-		// Call the function to initialize the moesif client and moesif options
-		if apiClient == nil {
-			moesifOption = configurationOption
-			moesifClient(moesifOption)
-		}
-		sendMoesifAsync(request, response, configurationOption)
-		return response, err
-	}
-}
+func MoesifLogger(f interface{}, configurationOption map[string]interface{}) interface{} {
+	switch handler := f.(type) {
+	case func(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error):
+		// Handle v1.0 payload
+		return func(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+			// Initialize the Moesif client if not already initialized
+			if apiClient == nil {
+				moesifOption = configurationOption
+				moesifClient(moesifOption)
+			}
 
-func MoesifLoggerV2HTTP(f func(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error), configurationOption map[string]interface{}) func(context.Context, events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-	return func(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-		response, err := f(ctx, request)
-		// Call the function to initialize the moesif client and moesif options
-		if apiClient == nil {
-			moesifOption = configurationOption
-			moesifClient(moesifOption)
+			// Call the handler and send data to Moesif
+			response, err := handler(ctx, request)
+			sendMoesifAsync(request, response, configurationOption)
+			return response, err
 		}
-		sendMoesifAsyncV2HTTP(request, response, configurationOption)
-		return response, err
+
+	case func(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error):
+		// Handle v2.0 payload
+		return func(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+			// Initialize the Moesif client if not already initialized
+			if apiClient == nil {
+				moesifOption = configurationOption
+				moesifClient(moesifOption)
+			}
+
+			// Call the handler and send data to Moesif
+			response, err := handler(ctx, request)
+			sendMoesifAsyncV2HTTP(request, response, configurationOption)
+			return response, err
+		}
+
+	default:
+		// Unsupported handler type
+		panic("unsupported handler type passed to MoesifLogger")
 	}
 }
