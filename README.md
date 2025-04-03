@@ -91,7 +91,13 @@ moesifawslambda.StartCaptureOutgoing(MoesifOptions())
 
 ## Configuration options
 
-Please note that the [request](https://github.com/aws/aws-lambda-go/blob/master/events/apigw.go#L6) and the [response](https://github.com/aws/aws-lambda-go/blob/master/events/apigw.go#L22) parameters in the configuration options are `aws-lambda-go` APIGatewayProxyRequest and APIGatewayProxyResponse respectively.
+Please note that the request and response parameters in the configuration options are as follows:
+- Payload Format 1.0:
+  - Request: [APIGatewayProxyRequest](https://github.com/aws/aws-lambda-go/blob/master/events/apigw.go#L6)
+  - Response: [APIGatewayProxyResponse](https://github.com/aws/aws-lambda-go/blob/master/events/apigw.go#L22)
+- Payload Format 2.0:
+  - Request: [APIGatewayV2HTTPRequest](https://github.com/aws/aws-lambda-go/blob/main/events/apigw.go#L53)
+  - Response: [APIGatewayV2HTTPResponse](https://github.com/aws/aws-lambda-go/blob/main/events/apigw.go#L125)
 
 ### __`Should_Skip`__
 (optional) _(request, response) => boolean_, a function that takes a request and a response,
