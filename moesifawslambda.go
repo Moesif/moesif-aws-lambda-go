@@ -101,6 +101,90 @@ func getUserId(request events.APIGatewayProxyRequest, response events.APIGateway
 	}
 }
 
+func getUserIdV2HTTP(request events.APIGatewayV2HTTPRequest, response events.APIGatewayV2HTTPResponse) *string {
+	var username string
+	if _, found := moesifOption["Identify_User"]; found {
+		username = moesifOption["Identify_User"].(func(events.APIGatewayV2HTTPRequest, events.APIGatewayV2HTTPResponse) string)(request, response)
+		return &username
+	} else {
+		switch (request.RequestContext.Authorizer != nil) && (request.RequestContext.Authorizer.IAM != nil) {
+		case true:
+			identity := request.RequestContext.Authorizer.IAM
+			if len(identity.CognitoIdentity.IdentityID) > 0 {
+				return &request.RequestContext.Authorizer.IAM.CognitoIdentity.IdentityID
+			}
+		case false:
+			return nil
+		}
+		return nil
+	}
+}
+
+func sendMoesifAsyncV2HTTP(request events.APIGatewayV2HTTPRequest, response events.APIGatewayV2HTTPResponse, configurationOption map[string]interface{}) {
+
+	// Api Version
+	var apiVersion *string = nil
+	if isApiVersion, found := moesifOption["Api_Version"].(string); found {
+		apiVersion = &isApiVersion
+	}
+
+	// Get Metadata
+	var metadata map[string]interface{} = nil
+	if _, found := moesifOption["Get_Metadata"]; found {
+		metadata = moesifOption["Get_Metadata"].(func(events.APIGatewayV2HTTPRequest, events.APIGatewayV2HTTPResponse) map[string]interface{})(request, response)
+	}
+
+	// Get User
+	var userId *string
+	userId = getUserIdV2HTTP(request, response)
+
+	// Get Company
+	var companyId string
+	if _, found := moesifOption["Identify_Company"]; found {
+		companyId = moesifOption["Identify_Company"].(func(events.APIGatewayV2HTTPRequest, events.APIGatewayV2HTTPResponse) string)(request, response)
+	}
+
+	// Get Session Token
+	var sessionToken string
+	if _, found := moesifOption["Get_Session_Token"]; found {
+		sessionToken = moesifOption["Get_Session_Token"].(func(events.APIGatewayV2HTTPRequest, events.APIGatewayV2HTTPResponse) string)(request, response)
+	}
+
+	// Prepare Moesif Event
+	moesifEvent := prepareEventV2HTTP(request, response, apiVersion, userId, companyId, sessionToken, metadata)
+
+	// Should skip
+	shouldSkip := false
+	if _, found := moesifOption["Should_Skip"]; found {
+		shouldSkip = moesifOption["Should_Skip"].(func(events.APIGatewayV2HTTPRequest, events.APIGatewayV2HTTPResponse) bool)(request, response)
+	}
+
+	if shouldSkip {
+		if debug {
+			log.Printf("Skip sending the event to Moesif")
+		}
+	} else {
+		if debug {
+			log.Printf("Sending the event to Moesif")
+		}
+
+		if _, found := moesifOption["Mask_Event_Model"]; found {
+			moesifEvent = moesifOption["Mask_Event_Model"].(func(models.EventModel) models.EventModel)(moesifEvent)
+		}
+
+		// Call the function to send event to Moesif
+		_, err := apiClient.CreateEvent(&moesifEvent)
+
+		if err != nil {
+			log.Fatalf("Error while sending event to Moesif: %s.\n", err.Error())
+		}
+
+		if debug {
+			log.Printf("Successfully sent event to Moesif")
+		}
+	}
+}
+
 func sendMoesifAsync(request events.APIGatewayProxyRequest, response events.APIGatewayProxyResponse, configurationOption map[string]interface{}) {
 
 	// Api Version
@@ -166,15 +250,40 @@ func sendMoesifAsync(request events.APIGatewayProxyRequest, response events.APIG
 	}
 }
 
-func MoesifLogger(f func(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error), configurationOption map[string]interface{}) func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	return func(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-		response, err := f(ctx, request)
-		// Call the function to initialize the moesif client and moesif options
-		if apiClient == nil {
-			moesifOption = configurationOption
-			moesifClient(moesifOption)
+func MoesifLogger(f interface{}, configurationOption map[string]interface{}) interface{} {
+	switch handler := f.(type) {
+	case func(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error):
+		// Handle v1.0 payload
+		return func(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+			// Initialize the Moesif client if not already initialized
+			if apiClient == nil {
+				moesifOption = configurationOption
+				moesifClient(moesifOption)
+			}
+
+			// Call the handler and send data to Moesif
+			response, err := handler(ctx, request)
+			sendMoesifAsync(request, response, configurationOption)
+			return response, err
 		}
-		sendMoesifAsync(request, response, configurationOption)
-		return response, err
+
+	case func(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error):
+		// Handle v2.0 payload
+		return func(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+			// Initialize the Moesif client if not already initialized
+			if apiClient == nil {
+				moesifOption = configurationOption
+				moesifClient(moesifOption)
+			}
+
+			// Call the handler and send data to Moesif
+			response, err := handler(ctx, request)
+			sendMoesifAsyncV2HTTP(request, response, configurationOption)
+			return response, err
+		}
+
+	default:
+		// Unsupported handler type
+		panic("unsupported handler type passed to MoesifLogger")
 	}
 }
